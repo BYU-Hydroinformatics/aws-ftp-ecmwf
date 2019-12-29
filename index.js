@@ -28,9 +28,29 @@ var logInstance = winston.add(
     awsRegion: "us-west-2",
     logGroupName: "ftp_transfer_to_s3_ec2",
     logStreamName: logStreamName,
-    jsonMessage: true
+    jsonMessage: true,
+    uploadRate: 500
   })
 )
+
+const waitForLogger = async (logger) => {
+  // if (logger && !logger.writable) {
+  //   // If it's already closed don't try to close it again
+  //   return Promise.resolve()
+  // }
+  // const loggerClosed = new Promise((resolve) => logger.on("finish", resolve))
+  // // https://github.com/winstonjs/winston/issues/1250
+  // logger.end()
+  // return loggerClosed
+  return new Promise((resolve) => setTimeout(resolve, 2500))
+}
+
+async function quitProcess(code) {
+  await ftp.end()
+  winston.info("FTP Connection terminated. All transfers done. Exiting")
+  await waitForLogger(winston)
+  process.exit(code)
+}
 
 winston.info("Test if winston is working")
 
@@ -99,7 +119,6 @@ async function moveFileToS3(file) {
     })
 
     upload.on("uploaded", function(details) {
-      console.log("I am called")
       winston.info(file.name + " sent to S3 bucket " + s3Bucket)
       console.log(file.name + " sent to S3 bucket " + s3Bucket)
       stream.end()
@@ -128,49 +147,18 @@ async function main() {
     if (filesNotOnS3.length < 1) {
       winston.info("No files to push. Quitting")
       console.log("No files to push. Quitting")
-      try {
-        var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-        transport.kthxbye(function() {
-          console.log("Ended Logger")
-        })
-      } catch (err) {
-        console.log(err)
+    } else {
+      for (let file of filesNotOnS3) {
+        let result = await moveFileToS3(file)
+        console.log(result)
       }
-
-      process.exit(0)
     }
-
-    let finalResult = 0
-    for (let file of filesNotOnS3) {
-      let result = await moveFileToS3(file)
-      console.log(result)
-    }
-
-    await ftp.end()
-
-    winston.info("FTP Connection terminated. All transfers done. Exiting")
-    try {
-      var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-      transport.kthxbye(function() {
-        console.log("Ended Logger")
-      })
-    } catch (err) {
-      console.log(err)
-    }
-    process.exit(0)
+    quitProcess(0)
   } catch (err) {
     winston.err(err)
     console.log(err)
     winston.info("Process ran into an error.")
-    try {
-      var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-      transport.kthxbye(function() {
-        console.log("Ended Logger")
-      })
-    } catch (err) {
-      console.log(err)
-    }
-    process.exit(1)
+    quitProcess(0)
   }
 }
 main()
