@@ -130,7 +130,6 @@ async function main() {
       console.log("No files to push. Quitting")
       try {
         var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-        console.log(transport)
         transport.kthxbye(function() {
           console.log("Ended Logger")
         })
@@ -152,7 +151,6 @@ async function main() {
     winston.info("FTP Connection terminated. All transfers done. Exiting")
     try {
       var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-      console.log(transport)
       transport.kthxbye(function() {
         console.log("Ended Logger")
       })
@@ -166,7 +164,6 @@ async function main() {
     winston.info("Process ran into an error.")
     try {
       var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
-      console.log(transport)
       transport.kthxbye(function() {
         console.log("Ended Logger")
       })
