@@ -22,14 +22,17 @@ let year = dateObj.getUTCFullYear()
 
 let logStreamName = `${month}-${day}-${year}`
 
-winston.add(
+var logInstance = winston.add(
   new WinstonCloudWatch({
+    name: "ecmwf_ftp",
     awsRegion: "us-west-2",
     logGroupName: "ftp_transfer_to_s3_ec2",
     logStreamName: logStreamName,
     jsonMessage: true
   })
 )
+
+winston.info("Test if winston is working")
 
 const s3Bucket = "ecmwf-files-byu-hydro-ecmwf"
 
@@ -125,6 +128,16 @@ async function main() {
     if (filesNotOnS3.length < 1) {
       winston.info("No files to push. Quitting")
       console.log("No files to push. Quitting")
+      try {
+        var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
+        console.log(transport)
+        transport.kthxbye(function() {
+          console.log("Ended Logger")
+        })
+      } catch (err) {
+        console.log(err)
+      }
+
       process.exit(0)
     }
 
@@ -135,12 +148,31 @@ async function main() {
     }
 
     await ftp.end()
+
     winston.info("FTP Connection terminated. All transfers done. Exiting")
+    try {
+      var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
+      console.log(transport)
+      transport.kthxbye(function() {
+        console.log("Ended Logger")
+      })
+    } catch (err) {
+      console.log(err)
+    }
     process.exit(0)
   } catch (err) {
     winston.err(err)
     console.log(err)
     winston.info("Process ran into an error.")
+    try {
+      var transport = logInstance.transports.find((t) => t.name === "ecmwf_ftp")
+      console.log(transport)
+      transport.kthxbye(function() {
+        console.log("Ended Logger")
+      })
+    } catch (err) {
+      console.log(err)
+    }
     process.exit(1)
   }
 }
