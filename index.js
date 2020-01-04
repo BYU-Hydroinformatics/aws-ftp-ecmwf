@@ -6,7 +6,6 @@ const AWS = require("aws-sdk") // eslint-disable-line import/no-extraneous-depen
 var PromiseFtp = require("promise-ftp")
 
 const ftp = new PromiseFtp()
-const s3Stream = require("s3-upload-stream")(new AWS.S3())
 const s3 = new AWS.S3()
 
 const creds = {
@@ -34,14 +33,6 @@ var logInstance = winston.add(
 )
 
 const waitForLogger = async (logger) => {
-  // if (logger && !logger.writable) {
-  //   // If it's already closed don't try to close it again
-  //   return Promise.resolve()
-  // }
-  // const loggerClosed = new Promise((resolve) => logger.on("finish", resolve))
-  // // https://github.com/winstonjs/winston/issues/1250
-  // logger.end()
-  // return loggerClosed
   return new Promise((resolve) => setTimeout(resolve, 2500))
 }
 
@@ -51,8 +42,6 @@ async function quitProcess(code) {
   await waitForLogger(winston)
   process.exit(code)
 }
-
-winston.info("Test if winston is working")
 
 const s3Bucket = "ecmwf-files-byu-hydro-ecmwf"
 
@@ -85,47 +74,28 @@ async function moveFileToS3(file) {
   console.log(`Downloading file ${file.name}, size: ${size}`)
   let stream = await ftp.get(file.name)
 
-  var upload = s3Stream.upload({
-    Bucket: s3Bucket,
-    Key: file.name
-  })
-  // upload.maxPartSize(153000000) // 150 MB
-  // upload.concurrentParts(15)
-  winston.info("Streaming " + file.name + " To S3 bucket " + s3Bucket)
+  // Upload the stream
+  var s3obj = new AWS.S3({ params: { Bucket: s3Bucket, Key: file.name } })
 
+  winston.info("Streaming " + file.name + " To S3 bucket " + s3Bucket)
   console.log("Streaming " + file.name + " To S3 bucket " + s3Bucket)
 
   return new Promise(function(resolve, reject) {
-    stream.pipe(upload)
-
-    upload.on("part", function(details) {
-      winston.info(details)
-      console.log(details)
-    })
-
-    upload.on("error", (err) => {
-      winston.error("Error whith S3 stream")
-      console.error("Error whith S3 stream")
-      console.error(err)
-      var myErrorObj = {
-        errorType: "InternalServerError",
-        httpStatus: 500,
-        message: "Error whith S3 upload: " + err
-      }
-      stream.end()
-      upload.end()
-      reject(myErrorObj)
-      return
-    })
-
-    upload.on("uploaded", function(details) {
-      winston.info(file.name + " sent to S3 bucket " + s3Bucket)
-      console.log(file.name + " sent to S3 bucket " + s3Bucket)
-      stream.end()
-      upload.end()
-      resolve(details)
-      return
-    })
+    s3obj
+      .upload({ Body: stream })
+      .on("httpUploadProgress", function(evt) {
+        winston.info("Progress:", evt.loaded, "/", evt.total)
+        console.log("Progress:", evt.loaded, "/", evt.total)
+      })
+      .send(function(err, data) {
+        if (err) {
+          winston.error("Error whith S3 stream")
+          winston.error(err)
+          console.log("An error occurred", err)
+        }
+        winston.info(file.name + " sent to S3 bucket " + s3Bucket)
+        console.log(file.name + " sent to S3 bucket " + s3Bucket)
+      })
   })
 }
 
