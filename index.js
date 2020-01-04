@@ -84,7 +84,7 @@ async function moveFileToS3(file) {
     s3obj
       .upload({ Body: stream })
       .on("httpUploadProgress", function(evt) {
-        winston.info("Progress:", evt.loaded, "/", evt.total)
+        winston.info(`Progress: ${evt.loaded}/${evt.total}`)
         console.log("Progress:", evt.loaded, "/", evt.total)
       })
       .send(function(err, data) {
