@@ -92,9 +92,11 @@ async function moveFileToS3(file) {
           winston.error("Error whith S3 stream")
           winston.error(err)
           console.log("An error occurred", err)
+          reject(err)
         }
         winston.info(file.name + " sent to S3 bucket " + s3Bucket)
         console.log(file.name + " sent to S3 bucket " + s3Bucket)
+        resolve(data)
       })
   })
 }
